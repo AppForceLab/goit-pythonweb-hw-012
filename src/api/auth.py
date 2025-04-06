@@ -1,6 +1,10 @@
 import uuid
+import json
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, Body, Form
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+from starlette.requests import Request
 from jose import JWTError
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -22,9 +26,8 @@ from src.database.models import User
 from src.schemas.users import Token, UserCreate, UserResponse
 from src.services.auth import get_current_user
 from src.services.cloudinary_service import upload_avatar
-from src.services.email import send_verification_email
+from src.services.email import send_verification_email, send_reset_password_email
 from src.services.redis_client import get_redis
-
 router = APIRouter(tags=["Auth"])
 
 
@@ -68,10 +71,21 @@ async def register_user(body: UserCreate, db: AsyncSession = Depends(get_db)):
 async def login(user: UserCreate, db: AsyncSession = Depends(get_db)):
     valid_user = await handlers.authenticate_user(user.email, user.password, db)
     token_data = {"sub": str(valid_user.email)}
-    return {
-        "access_token": create_access_token(token_data),
-        "refresh_token": create_refresh_token(token_data),
-    }
+
+    access_token = create_access_token(token_data)
+    refresh_token = create_refresh_token(token_data)
+
+    redis = await get_redis()
+    await redis.set(f"user:{valid_user.email}", json.dumps({
+        "id": valid_user.id,
+        "email": valid_user.email,
+        "username": valid_user.username,
+        "avatar": valid_user.avatar,
+        "role": valid_user.role
+    }))
+
+    await redis.set(f"refresh_token:{valid_user.email}", refresh_token)
+    return {"access_token": access_token, "refresh_token": refresh_token}
 
 
 @router.get("/verify/{token}")
@@ -123,17 +137,65 @@ async def get_refresh_token(request: Request, db: AsyncSession = Depends(get_db)
 
 
 @router.post("/avatar")
-async def update_avatar(
-    file: UploadFile = File(...),
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
+async def update_avatar(file: UploadFile = File(...),
+                        current_user: User = Depends(get_current_user),
+                        db: AsyncSession = Depends(get_db)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can update avatar")
     if not file.content_type.startswith("image/"):
-        raise HTTPException(
-            status_code=400, detail="Invalid file type. Only images are allowed."
-        )
-
+        raise HTTPException(status_code=400, detail="Invalid file type. Only images are allowed.")
     avatar_url = await upload_avatar(file)
     current_user.avatar = avatar_url
     await db.commit()
+    redis = await get_redis()
+    await redis.set(f"user:{current_user.email}", json.dumps({
+        "id": current_user.id,
+        "email": current_user.email,
+        "username": current_user.username,
+        "avatar": avatar_url,
+        "role": current_user.role
+    }))
     return {"avatar_url": avatar_url}
+
+@router.post("/request-reset")
+async def request_reset_password(email: str = Body(..., embed=True),
+                                 db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    token = str(uuid.uuid4())
+    user.reset_token = token
+    await db.commit()
+    await send_reset_password_email(user.email, token)
+    return {"message": "Password reset instructions sent to email"}
+
+@router.post("/reset-password/{token}")
+async def reset_password(
+    token: str,
+    new_password: str = Form(...),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(User).where(User.reset_token == token))
+    user = result.scalars().first()
+
+    if user is None:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+
+    user.password = pwd_context.hash(new_password)
+    user.reset_token = None
+    await db.commit()
+
+    return {"message": "Password has been reset"}
+
+templates = Jinja2Templates(directory="templates")
+
+@router.get("/reset-password/{token}", response_class=HTMLResponse)
+async def show_reset_form(request: Request, token: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.reset_token == token))
+    user = result.scalars().first()
+
+    if user is None:
+        return HTMLResponse(content="Invalid or expired token", status_code=404)
+
+    return templates.TemplateResponse("reset_password.html", {"request": request, "token": token})

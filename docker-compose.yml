@@ -18,18 +18,18 @@ services:
     ports:
       - "6379:6379"
 
-#  app:
-#    build: .
-#    command: fastapi dev
-#    volumes:
-#      - .:/app
-#    ports:
-#      - "8000:8000"
-#    depends_on:
-#      - db
-#      - redis
-#    env_file:
-#      - .env
+  app:
+    build: .
+    command: fastapi dev --host 0.0.0.0
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+    env_file:
+      - .env
 
 volumes:
   pgdata:
