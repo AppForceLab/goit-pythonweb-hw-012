@@ -14,6 +14,22 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 async def get_current_user(token: str = Depends(oauth2_scheme),
                            db: AsyncSession = Depends(get_db)) -> User:
+    """Validate JWT token and return the current user.
+    
+    This function validates the JWT token from the Authorization header,
+    retrieves user information from Redis cache or database,
+    and returns the User object for the authenticated user.
+    
+    Args:
+        token: JWT token from Authorization header
+        db: Database session dependency
+        
+    Returns:
+        User: Authenticated user object
+        
+    Raises:
+        HTTPException: With 401 status code if token is invalid or user not found
+    """
     try:
         payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
         user_email = payload.get("sub")

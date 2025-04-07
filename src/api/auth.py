@@ -35,7 +35,21 @@ router = APIRouter(tags=["Auth"])
     "/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED
 )
 async def register_user(body: UserCreate, db: AsyncSession = Depends(get_db)):
-    """Register a new user"""
+    """Register a new user.
+    
+    This endpoint creates a new user with the provided credentials and sends
+    a verification email to validate the user's email address.
+    
+    Args:
+        body: User creation data including username, email and password
+        db: Database session dependency
+        
+    Returns:
+        UserResponse: The created user data
+        
+    Raises:
+        HTTPException: If the email is already registered or if there's a database error
+    """
     
     # Check for existing user
     result = await db.execute(select(User).where(User.email == body.email))
@@ -80,6 +94,20 @@ async def register_user(body: UserCreate, db: AsyncSession = Depends(get_db)):
 
 @router.post("/login", response_model=Token)
 async def login(user: UserCreate, db: AsyncSession = Depends(get_db)):
+    """Authenticate a user and generate access and refresh tokens.
+    
+    This endpoint validates user credentials and returns JWT tokens for authenticated access.
+    
+    Args:
+        user: User credentials with email and password
+        db: Database session dependency
+        
+    Returns:
+        Token: Object containing access_token, refresh_token and token_type
+        
+    Raises:
+        HTTPException: If authentication fails
+    """
     valid_user = await handlers.authenticate_user(user.email, user.password, db)
     token_data = {"sub": str(valid_user.email)}
 
@@ -105,6 +133,18 @@ async def login(user: UserCreate, db: AsyncSession = Depends(get_db)):
 
 @router.get("/verify/{token}")
 async def verify_email(token: str, db: AsyncSession = Depends(get_db)):
+    """Verify a user's email address using the verification token.
+    
+    Args:
+        token: Verification token sent to the user's email
+        db: Database session dependency
+        
+    Returns:
+        dict: Success message if verification is successful
+        
+    Raises:
+        HTTPException: If the verification token is invalid
+    """
     stmt = select(User).where(User.verification_token == token)
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
@@ -125,7 +165,19 @@ async def read_me(
     x_test: str = Header(None),
     current_user: User = Depends(get_current_user)
 ):
-    """Get information about the current user"""
+    """Get information about the currently authenticated user.
+    
+    This endpoint returns the profile information of the authenticated user.
+    In test mode, it returns a fixed test user.
+    
+    Args:
+        request: HTTP request object
+        x_test: Test header flag
+        current_user: Current authenticated user fetched from token
+        
+    Returns:
+        UserResponse: User profile information
+    """
     
     # For test environment
     if x_test == "true" or request.headers.get("X-Test") == "true":
@@ -144,6 +196,18 @@ async def read_me(
 
 @router.post("/refresh", response_model=Token)
 async def get_refresh_token(request: Request, db: AsyncSession = Depends(get_db)):
+    """Refresh the access token using a valid refresh token.
+    
+    Args:
+        request: HTTP request object containing the refresh token in cookies
+        db: Database session dependency
+        
+    Returns:
+        Token: New access and refresh tokens
+        
+    Raises:
+        HTTPException: If the refresh token is missing, invalid or expired
+    """
     redis = await get_redis()
 
     refresh_token = request.cookies.get("refresh_token")
@@ -172,6 +236,21 @@ async def get_refresh_token(request: Request, db: AsyncSession = Depends(get_db)
 async def update_avatar(file: UploadFile = File(...),
                         current_user: User = Depends(get_current_user),
                         db: AsyncSession = Depends(get_db)):
+    """Update the user's avatar image.
+    
+    This endpoint allows admin users to upload a new avatar image.
+    
+    Args:
+        file: Uploaded image file
+        current_user: Current authenticated user
+        db: Database session dependency
+        
+    Returns:
+        dict: Object containing the URL of the uploaded avatar
+        
+    Raises:
+        HTTPException: If the user is not an admin or if the file type is invalid
+    """
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Only admins can update avatar")
     if not file.content_type.startswith("image/"):
@@ -192,6 +271,20 @@ async def update_avatar(file: UploadFile = File(...),
 @router.post("/request-reset")
 async def request_reset_password(email: str = Body(..., embed=True),
                                  db: AsyncSession = Depends(get_db)):
+    """Request a password reset link.
+    
+    This endpoint generates a password reset token and sends it to the user's email.
+    
+    Args:
+        email: User's email address
+        db: Database session dependency
+        
+    Returns:
+        dict: Success message
+        
+    Raises:
+        HTTPException: If the user is not found
+    """
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
     if user is None:
@@ -208,6 +301,19 @@ async def reset_password(
     new_password: str = Form(...),
     db: AsyncSession = Depends(get_db),
 ):
+    """Reset a user's password using a valid reset token.
+    
+    Args:
+        token: Password reset token
+        new_password: New password to set
+        db: Database session dependency
+        
+    Returns:
+        dict: Success message
+        
+    Raises:
+        HTTPException: If the reset token is invalid or expired
+    """
     result = await db.execute(select(User).where(User.reset_token == token))
     user = result.scalars().first()
 
@@ -224,6 +330,21 @@ templates = Jinja2Templates(directory="templates")
 
 @router.get("/reset-password/{token}", response_class=HTMLResponse)
 async def show_reset_form(request: Request, token: str, db: AsyncSession = Depends(get_db)):
+    """Show the password reset form.
+    
+    This endpoint renders an HTML form that allows users to reset their password.
+    
+    Args:
+        request: HTTP request object
+        token: Password reset token
+        db: Database session dependency
+        
+    Returns:
+        HTMLResponse: HTML template for password reset
+        
+    Raises:
+        HTMLResponse: With 404 status if token is invalid
+    """
     result = await db.execute(select(User).where(User.reset_token == token))
     user = result.scalars().first()
 
@@ -235,7 +356,13 @@ async def show_reset_form(request: Request, token: str, db: AsyncSession = Depen
 # Test route, not requiring authentication
 @router.get("/test/me", response_model=UserResponse)
 async def test_me():
-    """Test route to get user information"""
+    """Test route to get fixed user information without authentication.
+    
+    This endpoint is used for testing purposes and returns a predefined user.
+    
+    Returns:
+        UserResponse: Fixed test user data
+    """
     return {
         "id": 1,
         "username": "testuser",

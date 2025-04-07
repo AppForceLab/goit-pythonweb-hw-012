@@ -6,6 +6,17 @@ from src.conf.config import settings
 
 
 async def send_verification_email(email_to: str, token: str):
+    """Send email verification link to the user.
+    
+    This function sends an email with a verification link to the user's email address.
+    
+    Args:
+        email_to: Recipient's email address
+        token: Verification token to include in the link
+        
+    Returns:
+        None
+    """
     message = EmailMessage()
     message["From"] = settings.mail_from
     message["To"] = email_to
@@ -24,24 +35,18 @@ async def send_verification_email(email_to: str, token: str):
     )
 
 async def send_reset_password_email(email_to: str, token: str):
-    message = EmailMessage()
-    message["From"] = settings.mail_from
-    message["To"] = email_to
-    message["Subject"] = "Reset your password"
-    reset_link = f"http://localhost:8000/api/auth/reset-password/{token}"
-    message.set_content(f"Please click the link to reset your password: {reset_link}")
-
-    await aiosmtplib.send(
-        message,
-        hostname=settings.mail_server,
-        port=settings.mail_port,
-        username=settings.mail_username,
-        password=settings.mail_password,
-        start_tls=True,
-        validate_certs=False,
-    )
-
-async def send_reset_password_email(email_to: str, token: str):
+    """Send password reset link to the user.
+    
+    This function sends an email with a password reset link to the user's email address.
+    The email contains an HTML-formatted message with a clickable link.
+    
+    Args:
+        email_to: Recipient's email address
+        token: Reset token to include in the link
+        
+    Returns:
+        None
+    """
     message = EmailMessage()
     message["From"] = settings.mail_from
     message["To"] = email_to
