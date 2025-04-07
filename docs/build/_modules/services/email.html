@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>services.email &mdash; Python HW12 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Python HW12
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../intro.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation and Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/index.html">API Modules</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Python HW12</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">services.email</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for services.email</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">email.message</span><span class="w"> </span><span class="kn">import</span> <span class="n">EmailMessage</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">aiosmtplib</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">src.conf.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">settings</span>
+
+
+<div class="viewcode-block" id="send_verification_email">
+<a class="viewcode-back" href="../../modules/services/services.html#services.email.send_verification_email">[docs]</a>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">send_verification_email</span><span class="p">(</span><span class="n">email_to</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">token</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Send email verification link to the user.</span>
+<span class="sd">    </span>
+<span class="sd">    This function sends an email with a verification link to the user&#39;s email address.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        email_to: Recipient&#39;s email address</span>
+<span class="sd">        token: Verification token to include in the link</span>
+<span class="sd">        </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        None</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">message</span> <span class="o">=</span> <span class="n">EmailMessage</span><span class="p">()</span>
+    <span class="n">message</span><span class="p">[</span><span class="s2">&quot;From&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">mail_from</span>
+    <span class="n">message</span><span class="p">[</span><span class="s2">&quot;To&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">email_to</span>
+    <span class="n">message</span><span class="p">[</span><span class="s2">&quot;Subject&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;Verify your email&quot;</span>
+    <span class="n">verify_link</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;http://localhost:8000/api/auth/verify/</span><span class="si">{</span><span class="n">token</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="n">message</span><span class="o">.</span><span class="n">set_content</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Please click the link to verify your email: </span><span class="si">{</span><span class="n">verify_link</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">await</span> <span class="n">aiosmtplib</span><span class="o">.</span><span class="n">send</span><span class="p">(</span>
+        <span class="n">message</span><span class="p">,</span>
+        <span class="n">hostname</span><span class="o">=</span><span class="n">settings</span><span class="o">.</span><span class="n">mail_server</span><span class="p">,</span>
+        <span class="n">port</span><span class="o">=</span><span class="n">settings</span><span class="o">.</span><span class="n">mail_port</span><span class="p">,</span>
+        <span class="n">username</span><span class="o">=</span><span class="n">settings</span><span class="o">.</span><span class="n">mail_username</span><span class="p">,</span>
+        <span class="n">password</span><span class="o">=</span><span class="n">settings</span><span class="o">.</span><span class="n">mail_password</span><span class="p">,</span>
+        <span class="n">start_tls</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">validate_certs</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="send_reset_password_email">
+<a class="viewcode-back" href="../../modules/services/services.html#services.email.send_reset_password_email">[docs]</a>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">send_reset_password_email</span><span class="p">(</span><span class="n">email_to</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">token</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Send password reset link to the user.</span>
+<span class="sd">    </span>
+<span class="sd">    This function sends an email with a password reset link to the user&#39;s email address.</span>
+<span class="sd">    The email contains an HTML-formatted message with a clickable link.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        email_to: Recipient&#39;s email address</span>
+<span class="sd">        token: Reset token to include in the link</span>
+<span class="sd">        </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        None</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">message</span> <span class="o">=</span> <span class="n">EmailMessage</span><span class="p">()</span>
+    <span class="n">message</span><span class="p">[</span><span class="s2">&quot;From&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">mail_from</span>
+    <span class="n">message</span><span class="p">[</span><span class="s2">&quot;To&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">email_to</span>
+    <span class="n">message</span><span class="p">[</span><span class="s2">&quot;Subject&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;Password Reset Request&quot;</span>
+    <span class="n">reset_link</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;http://localhost:8000/api/auth/reset-password/</span><span class="si">{</span><span class="n">token</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="n">message</span><span class="o">.</span><span class="n">set_content</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">    &lt;html&gt;</span>
+<span class="s2">      &lt;body&gt;</span>
+<span class="s2">        &lt;p&gt;To reset your password, please click the link below:&lt;/p&gt;</span>
+<span class="s2">        &lt;p&gt;&lt;a href=&quot;http://localhost:8000/api/auth/reset-password/</span><span class="si">{</span><span class="n">token</span><span class="si">}</span><span class="s2">&quot;&gt;Reset Password&lt;/a&gt;&lt;/p&gt;</span>
+<span class="s2">      &lt;/body&gt;</span>
+<span class="s2">    &lt;/html&gt;</span>
+<span class="s2">    &quot;&quot;&quot;</span><span class="p">,</span> <span class="n">subtype</span><span class="o">=</span><span class="s1">&#39;html&#39;</span><span class="p">)</span>
+    <span class="k">await</span> <span class="n">aiosmtplib</span><span class="o">.</span><span class="n">send</span><span class="p">(</span>
+        <span class="n">message</span><span class="p">,</span>
+        <span class="n">hostname</span><span class="o">=</span><span class="n">settings</span><span class="o">.</span><span class="n">mail_server</span><span class="p">,</span>
+        <span class="n">port</span><span class="o">=</span><span class="n">settings</span><span class="o">.</span><span class="n">mail_port</span><span class="p">,</span>
+        <span class="n">username</span><span class="o">=</span><span class="n">settings</span><span class="o">.</span><span class="n">mail_username</span><span class="p">,</span>
+        <span class="n">password</span><span class="o">=</span><span class="n">settings</span><span class="o">.</span><span class="n">mail_password</span><span class="p">,</span>
+        <span class="n">start_tls</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">validate_certs</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Volodymyr Popov.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
